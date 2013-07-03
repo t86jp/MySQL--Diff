@@ -48,6 +48,14 @@ CREATE TABLE foo (
 );
 ',
 
+  foo5 => '
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  foreign_id INT(11) NOT NULL,
+  PRIMARY KEY (id)
+) PARTITION BY HASH (id);
+',
+
   bar1 => '
 CREATE TABLE bar (
   id     INT AUTO_INCREMENT NOT NULL PRIMARY KEY, 
@@ -101,6 +109,87 @@ CREATE TABLE baz (
   surname   CHAR(16),
   KEY (firstname, surname)
 );
+',
+
+  qux1 => '
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime,
+  PRIMARY KEY (id)
+);
+',
+
+  qux2 => '
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime,
+  PRIMARY KEY (id)
+) PARTITION BY HASH (id);
+',
+
+  qux3 => '
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime,
+  PRIMARY KEY (id)
+) PARTITION BY LINEAR HASH (id);
+',
+
+  qux4 => '
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime,
+  PRIMARY KEY (id)
+) PARTITION BY KEY (id);
+',
+
+  qux5 => '
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime,
+  PRIMARY KEY (id, create_at)
+) PARTITION BY RANGE (TO_DAYS(create_at)) (
+  PARTITION p20130314 VALUES LESS THAN (735306),
+  PARTITION p20130328 VALUES LESS THAN (735320)
+);
+',
+
+  qux6 => '
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime,
+  PRIMARY KEY (id, create_at)
+) PARTITION BY LIST (MONTH(create_at)) (
+  PARTITION odd VALUES IN (1,3,5,7,9,11),
+  PARTITION even VALUES IN (2,4,6,8,10,12)
+);
+',
+
+  qux7 => '
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime,
+  PRIMARY KEY (id, create_at)
+) PARTITION BY RANGE (TO_DAYS(create_at)) (
+  PARTITION p20130314 VALUES LESS THAN (735306),
+  PARTITION p20130328 VALUES LESS THAN (735320),
+  PARTITION p20130329 VALUES LESS THAN (735321)
+);
+',
+
+  qux8 => '
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime,
+  PRIMARY KEY (id, create_at)
+) PARTITION BY RANGE (TO_DAYS(create_at))
+SUBPARTITION BY HASH (`id`)
+SUBPARTITIONS 2
+(
+  PARTITION p20130314 VALUES LESS THAN (735306),
+  PARTITION p20130328 VALUES LESS THAN (735320),
+  PARTITION p20130329 VALUES LESS THAN (735321)
+)
 ',
 );
 
@@ -185,7 +274,7 @@ CREATE TABLE bar (
   name char(16) default NULL,
   age int(11) default NULL,
   PRIMARY KEY (id)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 ',
   ],
@@ -426,7 +515,166 @@ ALTER TABLE baz DROP INDEX firstname; # was INDEX (firstname,surname)
 ALTER TABLE baz ADD UNIQUE firstname (firstname,surname);
 ',
   ],
+
+  'add partition by hash' =>
+  [
+    {},
+    $tables{qux1},
+    $tables{qux2},
+    '## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE foo PARTITION BY HASH (id);
+',
+  ],
+
+  'add partition by hash' =>
+  [
+    {},
+    $tables{qux1},
+    $tables{qux2},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE foo PARTITION BY HASH (id);
+},
+  ],
+
+  'add partition by linear hash' =>
+  [
+    {},
+    $tables{qux1},
+    $tables{qux3},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE foo PARTITION BY LINEAR HASH (id);
+},
+  ],
+
+  'add partition by key' =>
+  [
+    {},
+    $tables{qux1},
+    $tables{qux4},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE foo PARTITION BY KEY (id);
+},
+  ],
+
+  'add partition by range' =>
+  [
+    {},
+    $tables{qux1},
+    $tables{qux5},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE foo CHANGE COLUMN create_at create_at datetime NOT NULL DEFAULT \'0000-00-00 00:00:00\'; # was datetime DEFAULT NULL
+ALTER TABLE foo ADD INDEX (id); # auto columns must always be indexed
+ALTER TABLE foo DROP PRIMARY KEY; # was (id)
+ALTER TABLE foo ADD PRIMARY KEY (id,create_at);
+ALTER TABLE foo DROP INDEX id;
+ALTER TABLE foo PARTITION BY RANGE (TO_DAYS(create_at)) (PARTITION p20130314 VALUES LESS THAN (735306) ENGINE = InnoDB, PARTITION p20130328 VALUES LESS THAN (735320) ENGINE = InnoDB);
+},
+  ],
+
+  'add partition by list' =>
+  [
+    {},
+    $tables{qux1},
+    $tables{qux6},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE foo CHANGE COLUMN create_at create_at datetime NOT NULL DEFAULT \'0000-00-00 00:00:00\'; # was datetime DEFAULT NULL
+ALTER TABLE foo ADD INDEX (id); # auto columns must always be indexed
+ALTER TABLE foo DROP PRIMARY KEY; # was (id)
+ALTER TABLE foo ADD PRIMARY KEY (id,create_at);
+ALTER TABLE foo DROP INDEX id;
+ALTER TABLE foo PARTITION BY LIST (MONTH(create_at)) (PARTITION odd VALUES IN (1,3,5,7,9,11) ENGINE = InnoDB, PARTITION even VALUES IN (2,4,6,8,10,12) ENGINE = InnoDB);
+},
+  ],
+
+  'add list partition' =>
+  [
+    {},
+    $tables{qux5},
+    $tables{qux7},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE foo ADD PARTITION (PARTITION p20130329 VALUES LESS THAN (735321) ENGINE = InnoDB);
+},
+  ],
+
+  'drop range partition' =>
+  [
+    {},
+    $tables{qux7},
+    $tables{qux5},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE foo DROP PARTITION p20130329;
+},
+  ],
+
+  'add sub partition' =>
+  [
+    {},
+    $tables{qux7},
+    $tables{qux8},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE foo PARTITION BY RANGE (TO_DAYS(create_at)) SUBPARTITION BY HASH (id) SUBPARTITIONS 2 (PARTITION p20130314 VALUES LESS THAN (735306) ENGINE = InnoDB, PARTITION p20130328 VALUES LESS THAN (735320) ENGINE = InnoDB, PARTITION p20130329 VALUES LESS THAN (735321) ENGINE = InnoDB);
+},
+  ],
 );
+
+my %old_tests = %tests;
+#%tests = (
+  #'add partition' => $old_tests{'add partition by range'}
+#);
 
 my $BAIL = check_setup();
 plan skip_all => $BAIL  if($BAIL);

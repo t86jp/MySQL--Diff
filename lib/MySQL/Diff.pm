@@ -193,7 +193,8 @@ sub _diff_tables {
         $self->_diff_fields(@_),
         $self->_diff_indices(@_),
         $self->_diff_primary_key(@_),
-        $self->_diff_options(@_)        
+        $self->_diff_options(@_),
+        $self->_diff_partitions(@_)
     );
 
     $changes[-1] =~ s/\n*$/\n/  if (@changes);
@@ -407,6 +408,81 @@ sub _diff_options {
         $change .= " # was " . ($options1 || 'blank') unless $self->{opts}{'no-old-defs'};
         $change .= "\n";
         push @changes, $change;
+    }
+
+    return @changes;
+}
+
+sub _diff_partitions {
+    my ($self, $table1, $table2) = @_;
+
+    my $name     = $table1->name();
+    my $partitions1 = $table1->partitions() || '';
+    my $partitions2 = $table2->partitions() || '';
+
+    return () unless $partitions1 || $partitions2;
+
+    my @changes;
+
+    if ($partitions1 != $partitions2) {
+        if($partitions2 && $partitions2->{subpartition}){
+            my $partition = sprintf("ALTER TABLE %s PARTITION BY %s (%s) SUBPARTITION BY %s (%s) SUBPARTITIONS %d (%s);\n",
+                $name, $partitions2->{type}, $partitions2->{field},
+                @{$partitions2->{subpartition}}{qw/type field partitions/},
+                join(' ', @{$partitions2->{partitions}})
+            );
+            push @changes, $partition;
+        }elsif($partitions1 && $partitions1->{subpartition}){
+            push @changes, sprintf('-- can not remove sub partition: SUBPARTITION BY %s (%s) SUBPARTITIONS %d', @{$partitions1->{subpartition}}{qw/type field partitions/});
+        }else{
+          if($partitions2 && $partitions2->{type} =~ /^(?:(?:KEY)|(?:(?:LINEAR\s+)?HASH))$/){
+              push @changes, sprintf("ALTER TABLE %s PARTITION BY %s (%s);\n", $name, $partitions2->{type}, $partitions2->{field});
+          }elsif($partitions1 && $partitions1->{type} =~ /^(?:(?:KEY)|(?:(?:LINEAR\s+)?HASH))$/){
+            push @changes, sprintf('-- can not remove partition: PARTITION BY %s (%s)', @{$partitions1}{qw/type field/});
+          }
+
+          if(($partitions1 && $partitions1->{type} =~ /^(?:RANGE|LIST)$/) || ($partitions2 && $partitions2->{type} =~ /^(?:RANGE|LIST)$/)){
+              my @list_partitions = $self->_diff_list_partitions($table1, $table2);
+              push @changes, @list_partitions if @list_partitions;
+          }
+        }
+    }
+
+    return @changes;
+}
+
+sub _diff_list_partitions {
+    my ($self, $table1, $table2) = @_;
+
+    my $name     = $table1->name();
+    my $partitions1 = $table1->partitions() || '';
+    my $partitions2 = $table2->partitions() || '';
+
+    return () unless $partitions1 || $partitions2;
+
+    my @changes;
+
+    my @partitions1 = $partitions1 ? @{$partitions1->{partitions} || []} : ();
+    my @partitions2 = $partitions2 ? @{$partitions2->{partitions} || []} : ();
+
+    unless(@partitions1){
+        my $def = $partitions2->def;
+        $def =~ s/[\r\n]+/ /g;
+        return sprintf("ALTER TABLE %s %s;\n", $name, $def);
+    }
+
+    my %map = map{ $_ => 1 }map{(s!,?\s*$!!, $_)[-1]}@partitions1;
+    $map{$_} = $map{$_} ? 0 : 2 foreach map{(s!,?\s*$!!, $_)[-1]}@partitions2;
+
+    my @add = grep{$map{$_} == 2} keys %map;
+    my @drop = grep{$map{$_} == 1} keys %map;
+
+    foreach(@drop){
+      my ($partition_name) = $_ =~ m!^PARTITION\s+([^\s]+)!;
+      push @changes, sprintf("ALTER TABLE %s DROP PARTITION %s;\n", $name, $partition_name);
+    }
+    foreach(@add){
+      push @changes, sprintf("ALTER TABLE %s ADD PARTITION (%s);\n", $name, $_);
     }
 
     return @changes;
