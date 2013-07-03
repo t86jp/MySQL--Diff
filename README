@@ -1,0 +1,53 @@
+README for MySQL-Diff
+
+                              MySQL-Diff
+                             ============
+
+MySQL-Diff is suite of Perl modules and accompanying CLI script for
+comparing the schema (table structures) of two MySQL databases.
+
+Prerequisites
+-------------
+
+This suite probably requires Perl 5.005 or higher.
+
+Availability
+------------
+
+The latest version of MySQL-Diff is available from
+
+  http://adamspiers.org/computing/mysqldiff/
+
+and eventually (a possibly slightly older version) from the
+Comprehensive Perl Archive Network (CPAN).  Visit
+<http://www.perl.com/CPAN> to find a CPAN site near you.
+
+Installation
+------------
+
+See INSTALL file.
+
+Documentation
+-------------
+
+Homepage: http://adamspiers.org/computing/mysqldiff/
+Documentation at CPAN: http://search.cpan.org/dist/MySQL-Diff/
+
+Support
+-------
+
+Questions, patches, and suggestions for MySQL-Diff should just be sent
+to me at <mysqldiff@adamspiers.org>.  Bug reports should be submitted 
+at the website below.
+
+Known bugs
+----------
+
+See https://rt.cpan.org/Public/Dist/Display.html?Name=MySQL-Diff
+
+Copyright
+---------
+
+(c) 2000-2011 Adam Spiers <mysqldiff@adamspiers.org>, all rights reserved.
+This program is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
