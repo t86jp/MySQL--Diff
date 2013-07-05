@@ -454,10 +454,7 @@ sub _diff_partitions {
             return $self->_replace_partitions($table2);
         }
 
-        my @changes;
-        my @list_partitions = $self->_diff_list_partitions($table1, $table2);
-        push @changes, @list_partitions if @list_partitions;
-        return @changes;
+        return $self->_diff_list_partitions($table1, $table2);
     }
 
     if($partitions2->{type} =~ /^(?:(?:KEY)|(?:(?:LINEAR\s+)?HASH))$/){
