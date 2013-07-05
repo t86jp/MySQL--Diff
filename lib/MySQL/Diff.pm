@@ -471,8 +471,6 @@ sub _diff_list_partitions {
 
     return () unless $partitions1 || $partitions2;
 
-    my @changes;
-
     my @partitions1 = $partitions1 ? @{$partitions1->{partitions} || []} : ();
     my @partitions2 = $partitions2 ? @{$partitions2->{partitions} || []} : ();
 
@@ -486,6 +484,7 @@ sub _diff_list_partitions {
     my @add = grep{$map{$_} == 2} keys %map;
     my @drop = grep{$map{$_} == 1} keys %map;
 
+    my @changes;
     foreach(@drop){
       my ($partition_name) = $_ =~ m!^PARTITION\s+([^\s]+)!;
       push @changes, sprintf("ALTER TABLE %s DROP PARTITION %s;\n", $name, $partition_name);
