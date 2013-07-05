@@ -324,7 +324,7 @@ sub _cmp{
 
     if($self->{subpartition} || $b->{subpartition}){
         foreach(qw/type field partitions/){
-            return 0 unless +($self->{subpartition} || {})->{$_} eq +($b->{subpartition} || {})->{$_};
+            return 0 unless +(($self->{subpartition} || {})->{$_} || '') eq (($b->{subpartition} || {})->{$_} || '');
         }
     }
 
