@@ -329,6 +329,7 @@ sub _cmp{
     }
 
     if($self->{partitions} || $b->{partitions}){
+        return 0 unless @{$self->{partitions} || []} == @{$b->{partitions} || []};
         foreach my $p(@{$self->{partitions}}){
             return 0 unless grep{ $p eq $_ }@{$b->{partitions}};
         }

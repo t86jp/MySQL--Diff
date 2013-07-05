@@ -486,11 +486,20 @@ sub _diff_list_partitions {
 
     my @changes;
     foreach(@drop){
-      my ($partition_name) = $_ =~ m!^PARTITION\s+([^\s]+)!;
-      push @changes, sprintf("ALTER TABLE %s DROP PARTITION %s;\n", $name, $partition_name);
+        my ($partition_name) = $_ =~ m!^PARTITION\s+([^\s]+)!;
+        push @changes, sprintf("ALTER TABLE %s DROP PARTITION %s;\n", $name, $partition_name);
     }
-    foreach(@add){
-      push @changes, sprintf("ALTER TABLE %s ADD PARTITION (%s);\n", $name, $_);
+
+    if(my ($max_partition) = grep{ /\s+MAXVALUE\s+/ }@partitions1){
+        my ($max_name) = m!^PARTITION\s+([^\s]+)!;
+        foreach(@add){
+            my @partitions = ($_, $max_partition);
+            push @changes, sprintf("ALTER TABLE %s REORGANIZE PARTITION %s INTO (%s);\n", $name, $max_name, join(', ', @partitions));
+        }
+    }else{
+        foreach(@add){
+            push @changes, sprintf("ALTER TABLE %s ADD PARTITION (%s);\n", $name, $_);
+        }
     }
 
     return @changes;
