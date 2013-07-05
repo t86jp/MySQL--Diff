@@ -413,42 +413,56 @@ sub _diff_options {
     return @changes;
 }
 
+sub _replace_partitions{
+    my ($self, $table) = @_;
+
+    my $name = $table->name();
+    my $partitions = $table->partitions() or return;
+
+    my $def = $partitions->def;
+    $def =~ s/[\r\n]+/ /g;
+    return sprintf("ALTER TABLE %s %s;\n", $name, $def);
+}
+
 sub _diff_partitions {
     my ($self, $table1, $table2) = @_;
 
     my $name     = $table1->name();
-    my $partitions1 = $table1->partitions() || '';
-    my $partitions2 = $table2->partitions() || '';
+    my $partitions1 = $table1->partitions();
+    my $partitions2 = $table2->partitions();
 
     return () unless $partitions1 || $partitions2;
+    $partitions1 ||= {type=>'', field=>''};
+    $partitions2 ||= {type=>'', field=>''};
+    return () if $partitions1 == $partitions2;
 
-    my @changes;
-
-    if ($partitions1 != $partitions2) {
-        if($partitions2 && $partitions2->{subpartition}){
-            my $partition = sprintf("ALTER TABLE %s PARTITION BY %s (%s) SUBPARTITION BY %s (%s) SUBPARTITIONS %d (%s);\n",
-                $name, $partitions2->{type}, $partitions2->{field},
-                @{$partitions2->{subpartition}}{qw/type field partitions/},
-                join(' ', @{$partitions2->{partitions}})
-            );
-            push @changes, $partition;
-        }elsif($partitions1 && $partitions1->{subpartition}){
-            push @changes, sprintf('-- can not remove sub partition: SUBPARTITION BY %s (%s) SUBPARTITIONS %d', @{$partitions1->{subpartition}}{qw/type field partitions/});
-        }else{
-          if($partitions2 && $partitions2->{type} =~ /^(?:(?:KEY)|(?:(?:LINEAR\s+)?HASH))$/){
-              push @changes, sprintf("ALTER TABLE %s PARTITION BY %s (%s);\n", $name, $partitions2->{type}, $partitions2->{field});
-          }elsif($partitions1 && $partitions1->{type} =~ /^(?:(?:KEY)|(?:(?:LINEAR\s+)?HASH))$/){
-            push @changes, sprintf('-- can not remove partition: PARTITION BY %s (%s)', @{$partitions1}{qw/type field/});
-          }
-
-          if(($partitions1 && $partitions1->{type} =~ /^(?:RANGE|LIST)$/) || ($partitions2 && $partitions2->{type} =~ /^(?:RANGE|LIST)$/)){
-              my @list_partitions = $self->_diff_list_partitions($table1, $table2);
-              push @changes, @list_partitions if @list_partitions;
-          }
-        }
+    if($partitions1->{type} && !$partitions2->{type}){
+        return sprintf('-- can not remove partition: PARTITION BY %s (%s)', @{$partitions1}{qw/type field/});
+    }
+    if($partitions1->{type} ne $partitions2->{type} || $partitions1->{field} ne $partitions2->{field}){
+        return $self->_replace_partitions($table2);
     }
 
-    return @changes;
+
+    if($partitions2->{type} =~ /^(?:RANGE|LIST)$/){
+        my ($subpartitions1, $subpartitions2) = map{ $_->{subpartition} || {type=>''} }$partitions1, $partitions2;
+
+        if($subpartitions1->{type} && !$subpartitions2->{type}){
+            return sprintf('-- can not remove sub partition: SUBPARTITION BY %s (%s) SUBPARTITIONS %d', @{$subpartitions1}{qw/type field partitions/});
+        }
+        if($subpartitions1->{type} ne $subpartitions2->{type}){
+            return $self->_replace_partitions($table2);
+        }
+
+        my @changes;
+        my @list_partitions = $self->_diff_list_partitions($table1, $table2);
+        push @changes, @list_partitions if @list_partitions;
+        return @changes;
+    }
+
+    if($partitions2->{type} =~ /^(?:(?:KEY)|(?:(?:LINEAR\s+)?HASH))$/){
+        return sprintf("ALTER TABLE %s PARTITION BY %s (%s);\n", $name, $partitions2->{type}, $partitions2->{field});
+    }
 }
 
 sub _diff_list_partitions {
@@ -466,9 +480,7 @@ sub _diff_list_partitions {
     my @partitions2 = $partitions2 ? @{$partitions2->{partitions} || []} : ();
 
     unless(@partitions1){
-        my $def = $partitions2->def;
-        $def =~ s/[\r\n]+/ /g;
-        return sprintf("ALTER TABLE %s %s;\n", $name, $def);
+        return $self->_replace_partitions($table2);
     }
 
     my %map = map{ $_ => 1 }map{(s!,?\s*$!!, $_)[-1]}@partitions1;
