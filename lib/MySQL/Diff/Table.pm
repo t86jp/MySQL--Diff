@@ -285,6 +285,16 @@ sub new {
     return $self;
 }
 
+sub AUTOLOAD {
+    our $AUTOLOAD;
+    (my $prop = $AUTOLOAD) =~ s!.*::!!;
+
+    no strict 'refs';
+    *$prop = sub{ shift->{$prop} };
+
+    goto \&$prop;
+}
+
 # ------------------------------------------------------------------------------
 # Private Methods
 
