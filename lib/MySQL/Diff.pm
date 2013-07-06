@@ -431,15 +431,15 @@ sub _diff_partitions {
     my ($self, $table1, $table2) = @_;
 
     my $name     = $table1->name();
-    my $partitions1 = $table1->partitions();
-    my $partitions2 = $table2->partitions();
+    my $partition1 = $table1->partitions();
+    my $partition2 = $table2->partitions();
 
-    return () unless $partitions1 || $partitions2;
-    $partitions1 ||= {type=>'', field=>''};
-    $partitions2 ||= {type=>'', field=>''};
-    return () if $partitions1 == $partitions2;
+    return () unless $partition1 || $partition2;
+    $partition1 ||= {type=>'', field=>''};
+    $partition2 ||= {type=>'', field=>''};
+    return () if $partition1 == $partition2;
 
-    if($partitions1->{type} && !$partitions2->{type}){
+    if($partition1->{type} && !$partition2->{type}){
         my $change = sprintf("ALTER TABLE %s REMOVE PARTITIONING;\n", $name);
         if(@{$self->{changes}->{primary_key}}){
             # set to remove partition before modify the primary key
@@ -448,13 +448,13 @@ sub _diff_partitions {
         }
         return $change;
     }
-    if($partitions1->{type} ne $partitions2->{type} || $partitions1->{field} ne $partitions2->{field}){
+    if($partition1->{type} ne $partition2->{type} || $partition1->{field} ne $partition2->{field}){
         return $self->_replace_partitions($table2);
     }
 
 
-    if($partitions2->{type} =~ /^(?:RANGE|LIST)$/){
-        my ($subpartitions1, $subpartitions2) = map{ $_->{subpartition} || {type=>''} }$partitions1, $partitions2;
+    if($partition2->{type} =~ /^(?:RANGE|LIST)$/){
+        my ($subpartitions1, $subpartitions2) = map{ $_->{subpartition} || {type=>''} }$partition1, $partition2;
 
         if($subpartitions1->{type} && !$subpartitions2->{type}){
             return sprintf('-- can not remove sub partition: SUBPARTITION BY %s (%s) SUBPARTITIONS %d', @{$subpartitions1}{qw/type field partitions/});
@@ -466,8 +466,17 @@ sub _diff_partitions {
         return $self->_diff_list_partitions($table1, $table2);
     }
 
-    if($partitions2->{type} =~ /^(?:(?:KEY)|(?:(?:LINEAR\s+)?HASH))$/){
-        return sprintf("ALTER TABLE %s PARTITION BY %s (%s);\n", $name, $partitions2->{type}, $partitions2->{field});
+    if($partition2->{type} =~ /^(?:(?:KEY)|(?:(?:LINEAR\s+)?HASH))$/){
+        my @changes;
+        my ($partitions1, $partitions2) = map{ $_->{partitions}->[0] || 0 }$partition1, $partition2;
+        if($partitions1 > $partitions2){
+            push @changes, sprintf("ALTER TABLE %s COALESCE PARTITION %d;\n", $name, $partitions1 - $partitions2);
+        }elsif($partitions1 < $partitions2){
+            push @changes, sprintf("ALTER TABLE %s ADD PARTITION PARTITIONS %d;\n", $name, $partitions2 - $partitions1);
+        }else{
+            push @changes, sprintf("ALTER TABLE %s PARTITION BY %s (%s);\n", $name, $partition2->{type}, $partition2->{field});
+        }
+        return @changes;
     }
 }
 
@@ -475,13 +484,13 @@ sub _diff_list_partitions {
     my ($self, $table1, $table2) = @_;
 
     my $name     = $table1->name();
-    my $partitions1 = $table1->partitions() || '';
-    my $partitions2 = $table2->partitions() || '';
+    my $partition1 = $table1->partitions() || '';
+    my $partition2 = $table2->partitions() || '';
 
-    return () unless $partitions1 || $partitions2;
+    return () unless $partition1 || $partition2;
 
-    my @partitions1 = $partitions1 ? @{$partitions1->{partitions} || []} : ();
-    my @partitions2 = $partitions2 ? @{$partitions2->{partitions} || []} : ();
+    my @partitions1 = $partition1 ? @{$partition1->{partitions} || []} : ();
+    my @partitions2 = $partition2 ? @{$partition2->{partitions} || []} : ();
 
     unless(@partitions1){
         return $self->_replace_partitions($table2);

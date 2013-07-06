@@ -293,20 +293,25 @@ sub _parse {
 
     my $def = $self->def();
 
-    $def =~ s!^\s*PARTITION\s*BY\s*((?:LINEAR\s+)?[^\s]+)\s*\((.*)\)[\r\n]*!!;
-    $self->{type} = $1;
-    $self->{field} = $2;
+    if($def =~ s!^\s*PARTITION\s*BY\s*((?:(?:LINEAR\s+)?HASH)|KEY)\s*\((.*)\)[\r\n]*(?:PARTITIONS\s+(\d+))?[\r\n]*!!){
+      $self->{type} = $1;
+      $self->{field} = $2;
+      $self->{partitions} = [$3];
+    }elsif($def =~ s!^\s*PARTITION\s*BY\s*(LIST|RANGE)\s*\((.*)\)[\r\n]*!!){
+      $self->{type} = $1;
+      $self->{field} = $2;
 
-    if($def =~ s!^\s*SUBPARTITION\s*BY\s*([^\s]+)\s*\((.*)\)[\r\n\s]*SUBPARTITIONS\s+(\d+)[\r\n]*!!){
-      $self->{subpartition} = {
-        'type' => $1,
-        'field' => $2,
-        'partitions' => $3,
-      };
+      if($def =~ s!^\s*SUBPARTITION\s*BY\s*([^\s]+)\s*\((.*)\)[\r\n\s]*SUBPARTITIONS\s+(\d+)[\r\n]*!!){
+        $self->{subpartition} = {
+          'type' => $1,
+          'field' => $2,
+          'partitions' => $3,
+        };
+      }
+
+      $def =~ s{^[\r\n\s]*\(|\)[\r\n\s]*$}{}g;
+      $self->{partitions} = [split /[\r\n]+/, $def];
     }
-
-    $def =~ s{^[\r\n\s]*\(|\)[\r\n\s]*$}{}g;
-    $self->{partitions} = [split /[\r\n]+/, $def];
 }
 
 sub _not_cmp{
@@ -330,8 +335,8 @@ sub _cmp{
 
     if($self->{partitions} || $b->{partitions}){
         return 0 unless @{$self->{partitions} || []} == @{$b->{partitions} || []};
-        foreach my $p(@{$self->{partitions}}){
-            return 0 unless grep{ $p eq $_ }@{$b->{partitions}};
+        foreach my $p(grep{$_}@{$self->{partitions}}){
+            return 0 unless grep{ $p eq $_ }grep{$_}@{$b->{partitions}};
         }
     }
 

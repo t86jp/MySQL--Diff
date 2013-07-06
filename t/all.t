@@ -217,6 +217,54 @@ CREATE TABLE foo (
   PARTITION pmax VALUES LESS THAN MAXVALUE
 );
 },
+
+  qux11 => q{
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (id)
+) PARTITION BY HASH (id) PARTITIONS 12;
+},
+
+  qux12 => q{
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (id)
+) PARTITION BY HASH (id) PARTITIONS 8;
+},
+
+  qux13 => q{
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (id)
+) PARTITION BY LINEAR HASH (id) PARTITIONS 12;
+},
+
+  qux14 => q{
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (id)
+) PARTITION BY LINEAR HASH (id) PARTITIONS 8;
+},
+
+  qux15 => q{
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (id)
+) PARTITION BY KEY (id) PARTITIONS 12;
+},
+
+  qux16 => q{
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (id)
+) PARTITION BY KEY (id) PARTITIONS 8;
+},
 );
 
 my %tests = (
@@ -798,6 +846,105 @@ ALTER TABLE foo ADD PRIMARY KEY (id);
 ALTER TABLE foo DROP INDEX id;
 },
   ],
+
+
+  'decrease range partitions' =>
+  [
+    {},
+    $tables{qux11},
+    $tables{qux12},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE foo COALESCE PARTITION 4;
+},
+  ],
+
+  'increase range partitions' =>
+  [
+    {},
+    $tables{qux12},
+    $tables{qux11},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE foo ADD PARTITION PARTITIONS 4;
+},
+  ],
+
+
+  'decrease linear hash partitions' =>
+  [
+    {},
+    $tables{qux13},
+    $tables{qux14},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE foo COALESCE PARTITION 4;
+},
+  ],
+
+  'increase linear hash partitions' =>
+  [
+    {},
+    $tables{qux14},
+    $tables{qux13},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE foo ADD PARTITION PARTITIONS 4;
+},
+  ],
+
+  'decrease key partitions' =>
+  [
+    {},
+    $tables{qux15},
+    $tables{qux16},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE foo COALESCE PARTITION 4;
+},
+  ],
+
+  'increase key partitions' =>
+  [
+    {},
+    $tables{qux16},
+    $tables{qux15},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE foo ADD PARTITION PARTITIONS 4;
+},
+  ],
+
 
 );
 
