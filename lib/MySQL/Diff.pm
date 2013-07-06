@@ -442,7 +442,7 @@ sub _diff_partitions {
     if($partitions1->{type} && !$partitions2->{type}){
         my $change = sprintf("ALTER TABLE %s REMOVE PARTITIONING;\n", $name);
         if(@{$self->{changes}->{primary_key}}){
-            # set to remove partition before the modify primary key
+            # set to remove partition before modify the primary key
             $self->{changes}->{primary_key}->[0] = $change. $self->{changes}->{primary_key}->[0];
             return;
         }
