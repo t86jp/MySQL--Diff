@@ -317,10 +317,20 @@ sub _parse {
           'field' => $2,
           'partitions' => $3,
         };
+      }elsif($def =~ s!^\s*SUBPARTITION\s*BY\s*([^\s]+)\s*\((.*)\)[\r\n]*!!){
+        $self->{subpartition} = {
+          'type' => $1,
+          'field' => $2,
+          'partitions' => 0,
+        };
+        $def =~ s{^[\r\n\s]*\(|\)[\r\n\s]*$}{}g;
+        $self->{partitions} = [$def =~ /(PARTITION\s+.+?\(SUBPARTITION\s+.+?\)(?:,|$))[\r\n]*/smg];
+        $def = '';
       }
-
-      $def =~ s{^[\r\n\s]*\(|\)[\r\n\s]*$}{}g;
-      $self->{partitions} = [split /[\r\n]+/, $def];
+      if($def){
+        $def =~ s{^[\r\n\s]*\(|\)[\r\n\s]*$}{}g;
+        $self->{partitions} = [split /[\r\n]+/, $def];
+      }
     }
 }
 
