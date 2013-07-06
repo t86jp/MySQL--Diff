@@ -293,7 +293,7 @@ sub _parse {
 
     my $def = $self->def();
 
-    if($def =~ s!^\s*PARTITION\s*BY\s*((?:(?:LINEAR\s+)?HASH)|KEY)\s*\((.*)\)[\r\n]*(?:PARTITIONS\s+(\d+))?[\r\n]*!!){
+    if($def =~ s!^\s*PARTITION\s*BY\s*((?:LINEAR\s+)?(?:HASH|KEY))\s*\((.*)\)[\r\n]*(?:PARTITIONS\s+(\d+))?[\r\n]*!!){
       $self->{type} = $1;
       $self->{field} = $2;
       $self->{partitions} = [$3];

@@ -466,7 +466,7 @@ sub _diff_partitions {
         return $self->_diff_list_partitions($table1, $table2);
     }
 
-    if($partition2->{type} =~ /^(?:(?:KEY)|(?:(?:LINEAR\s+)?HASH))$/){
+    if($partition2->{type} =~ /^(?:LINEAR\s+)?(?:HASH|KEY)$/){
         my @changes;
         my ($partitions1, $partitions2) = map{ $_->{partitions}->[0] || 0 }$partition1, $partition2;
         if($partitions1 > $partitions2){

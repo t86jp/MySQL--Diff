@@ -265,6 +265,14 @@ CREATE TABLE foo (
   PRIMARY KEY (id)
 ) PARTITION BY KEY (id) PARTITIONS 8;
 },
+
+  qux17 => q{
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (id)
+) PARTITION BY LINEAR KEY (id);
+},
 );
 
 my %tests = (
@@ -655,6 +663,22 @@ ALTER TABLE foo PARTITION BY KEY (id);
 },
   ],
 
+  'add partition by linear key' =>
+  [
+    {},
+    $tables{qux1},
+    $tables{qux17},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE foo PARTITION BY LINEAR KEY (id);
+},
+  ],
+
   'add partition by range' =>
   [
     {},
@@ -795,6 +819,22 @@ ALTER TABLE foo REMOVE PARTITIONING;
   [
     {},
     $tables{qux4},
+    $tables{qux1},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE foo REMOVE PARTITIONING;
+},
+  ],
+
+  'remove linear key partition' =>
+  [
+    {},
+    $tables{qux17},
     $tables{qux1},
     qq{## mysqldiff <VERSION>
 ##
