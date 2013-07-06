@@ -189,13 +189,16 @@ EOF
 
 sub _diff_tables {
     my $self = shift;
-    my @changes = ( 
-        $self->_diff_fields(@_),
-        $self->_diff_indices(@_),
-        $self->_diff_primary_key(@_),
-        $self->_diff_options(@_),
-        $self->_diff_partitions(@_)
-    );
+    my @params = @_;
+
+    $self->{changes} = {};
+    my @order = qw/fields indices primary_key options partitions/;
+    foreach(@order){
+        my $method = "_diff_$_";
+        $self->{changes}->{$_} = [$self->$method(@params)];
+    }
+    my @changes = map{ @{$self->{changes}->{$_}} }@order;
+    delete $self->{changes};
 
     $changes[-1] =~ s/\n*$/\n/  if (@changes);
     return @changes;
@@ -437,7 +440,13 @@ sub _diff_partitions {
     return () if $partitions1 == $partitions2;
 
     if($partitions1->{type} && !$partitions2->{type}){
-        return sprintf('-- can not remove partition: PARTITION BY %s (%s)', @{$partitions1}{qw/type field/});
+        my $change = sprintf("ALTER TABLE %s REMOVE PARTITIONING;\n", $name);
+        if(@{$self->{changes}->{primary_key}}){
+            # set to remove partition before the modify primary key
+            $self->{changes}->{primary_key}->[0] = $change. $self->{changes}->{primary_key}->[0];
+            return;
+        }
+        return $change;
     }
     if($partitions1->{type} ne $partitions2->{type} || $partitions1->{field} ne $partitions2->{field}){
         return $self->_replace_partitions($table2);
@@ -491,7 +500,7 @@ sub _diff_list_partitions {
     }
 
     if(my ($max_partition) = grep{ /\s+MAXVALUE\s+/ }@partitions1){
-        my ($max_name) = m!^PARTITION\s+([^\s]+)!;
+        my ($max_name) = $max_partition =~ m!^PARTITION\s+([^\s]+)!;
         foreach(@add){
             my @partitions = ($_, $max_partition);
             push @changes, sprintf("ALTER TABLE %s REORGANIZE PARTITION %s INTO (%s);\n", $name, $max_name, join(', ', @partitions));

@@ -111,76 +111,77 @@ CREATE TABLE baz (
 );
 ',
 
-  qux1 => '
+
+  qux1 => q{
 CREATE TABLE foo (
   id INT(11) NOT NULL auto_increment,
-  create_at datetime,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (id)
 );
-',
+},
 
-  qux2 => '
+  qux2 => q{
 CREATE TABLE foo (
   id INT(11) NOT NULL auto_increment,
-  create_at datetime,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (id)
 ) PARTITION BY HASH (id);
-',
+},
 
-  qux3 => '
+  qux3 => q{
 CREATE TABLE foo (
   id INT(11) NOT NULL auto_increment,
-  create_at datetime,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (id)
 ) PARTITION BY LINEAR HASH (id);
-',
+},
 
-  qux4 => '
+  qux4 => q{
 CREATE TABLE foo (
   id INT(11) NOT NULL auto_increment,
-  create_at datetime,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (id)
 ) PARTITION BY KEY (id);
-',
+},
 
-  qux5 => '
+  qux5 => q{
 CREATE TABLE foo (
   id INT(11) NOT NULL auto_increment,
-  create_at datetime,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (id, create_at)
 ) PARTITION BY RANGE (TO_DAYS(create_at)) (
   PARTITION p20130314 VALUES LESS THAN (735306),
   PARTITION p20130328 VALUES LESS THAN (735320)
 );
-',
+},
 
-  qux6 => '
+  qux6 => q{
 CREATE TABLE foo (
   id INT(11) NOT NULL auto_increment,
-  create_at datetime,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (id, create_at)
 ) PARTITION BY LIST (MONTH(create_at)) (
   PARTITION odd VALUES IN (1,3,5,7,9,11),
   PARTITION even VALUES IN (2,4,6,8,10,12)
 );
-',
+},
 
-  qux7 => '
+  qux7 => q{
 CREATE TABLE foo (
   id INT(11) NOT NULL auto_increment,
-  create_at datetime,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (id, create_at)
 ) PARTITION BY RANGE (TO_DAYS(create_at)) (
   PARTITION p20130314 VALUES LESS THAN (735306),
   PARTITION p20130328 VALUES LESS THAN (735320),
   PARTITION p20130329 VALUES LESS THAN (735321)
 );
-',
+},
 
-  qux8 => '
+  qux8 => q{
 CREATE TABLE foo (
   id INT(11) NOT NULL auto_increment,
-  create_at datetime,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (id, create_at)
 ) PARTITION BY RANGE (TO_DAYS(create_at))
 SUBPARTITION BY HASH (`id`)
@@ -190,24 +191,24 @@ SUBPARTITIONS 2
   PARTITION p20130328 VALUES LESS THAN (735320),
   PARTITION p20130329 VALUES LESS THAN (735321)
 )
-',
+},
 
-  qux9 => '
+  qux9 => q{
 CREATE TABLE foo (
   id INT(11) NOT NULL auto_increment,
-  create_at datetime,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (id, create_at)
 ) PARTITION BY RANGE (TO_DAYS(create_at)) (
   PARTITION p20130314 VALUES LESS THAN (735306),
   PARTITION p20130328 VALUES LESS THAN (735320),
   PARTITION pmax VALUES LESS THAN MAXVALUE
 );
-',
+},
 
-  qux10 => '
+  qux10 => q{
 CREATE TABLE foo (
   id INT(11) NOT NULL auto_increment,
-  create_at datetime,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
   PRIMARY KEY (id, create_at)
 ) PARTITION BY RANGE (TO_DAYS(create_at)) (
   PARTITION p20130314 VALUES LESS THAN (735306),
@@ -215,7 +216,7 @@ CREATE TABLE foo (
   PARTITION p20130329 VALUES LESS THAN (735321),
   PARTITION pmax VALUES LESS THAN MAXVALUE
 );
-',
+},
 );
 
 my %tests = (
@@ -541,6 +542,7 @@ ALTER TABLE baz ADD UNIQUE firstname (firstname,surname);
 ',
   ],
 
+
   'add partition by hash' =>
   [
     {},
@@ -617,7 +619,6 @@ ALTER TABLE foo PARTITION BY KEY (id);
 ## --- file: tmp.db1
 ## +++ file: tmp.db2
 
-ALTER TABLE foo CHANGE COLUMN create_at create_at datetime NOT NULL DEFAULT \'0000-00-00 00:00:00\'; # was datetime DEFAULT NULL
 ALTER TABLE foo ADD INDEX (id); # auto columns must always be indexed
 ALTER TABLE foo DROP PRIMARY KEY; # was (id)
 ALTER TABLE foo ADD PRIMARY KEY (id,create_at);
@@ -638,7 +639,6 @@ ALTER TABLE foo PARTITION BY RANGE (TO_DAYS(create_at)) (PARTITION p20130314 VAL
 ## --- file: tmp.db1
 ## +++ file: tmp.db2
 
-ALTER TABLE foo CHANGE COLUMN create_at create_at datetime NOT NULL DEFAULT \'0000-00-00 00:00:00\'; # was datetime DEFAULT NULL
 ALTER TABLE foo ADD INDEX (id); # auto columns must always be indexed
 ALTER TABLE foo DROP PRIMARY KEY; # was (id)
 ALTER TABLE foo ADD PRIMARY KEY (id,create_at);
@@ -710,6 +710,95 @@ ALTER TABLE foo PARTITION BY RANGE (TO_DAYS(create_at)) SUBPARTITION BY HASH (id
 ALTER TABLE foo REORGANIZE PARTITION pmax INTO (PARTITION p20130329 VALUES LESS THAN (735321) ENGINE = InnoDB, PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB);
 },
   ],
+
+  'remove hash partition' =>
+  [
+    {},
+    $tables{qux2},
+    $tables{qux1},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE foo REMOVE PARTITIONING;
+},
+  ],
+
+  'remove linear hash partition' =>
+  [
+    {},
+    $tables{qux3},
+    $tables{qux1},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE foo REMOVE PARTITIONING;
+},
+  ],
+
+  'remove key partition' =>
+  [
+    {},
+    $tables{qux4},
+    $tables{qux1},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE foo REMOVE PARTITIONING;
+},
+  ],
+
+  'remove range partition' =>
+  [
+    {},
+    $tables{qux5},
+    $tables{qux1},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE foo REMOVE PARTITIONING;
+ALTER TABLE foo ADD INDEX (id); # auto columns must always be indexed
+ALTER TABLE foo DROP PRIMARY KEY; # was (id,create_at)
+ALTER TABLE foo ADD PRIMARY KEY (id);
+ALTER TABLE foo DROP INDEX id;
+},
+  ],
+
+  'remove list partition' =>
+  [
+    {},
+    $tables{qux6},
+    $tables{qux1},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE foo REMOVE PARTITIONING;
+ALTER TABLE foo ADD INDEX (id); # auto columns must always be indexed
+ALTER TABLE foo DROP PRIMARY KEY; # was (id,create_at)
+ALTER TABLE foo ADD PRIMARY KEY (id);
+ALTER TABLE foo DROP INDEX id;
+},
+  ],
+
 );
 
 my %old_tests = %tests;
