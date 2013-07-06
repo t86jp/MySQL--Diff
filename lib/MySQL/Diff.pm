@@ -437,6 +437,7 @@ sub _diff_partitions {
     return if $partition1 == $partition2;
 
     if($partition1 && !$partition2){
+        # TODO mysql version check: remove partitioning can not use less than 5.1.8
         my $change = sprintf("ALTER TABLE %s REMOVE PARTITIONING;\n", $table1->name());
         if(@{$self->{changes}->{primary_key}}){
             # set to remove partition before modify the primary key
