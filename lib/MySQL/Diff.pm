@@ -434,10 +434,10 @@ sub _diff_partitions {
     my $partition1 = $table1->partitions();
     my $partition2 = $table2->partitions();
 
-    return () unless $partition1 || $partition2;
+    return unless $partition1 || $partition2;
     $partition1 ||= {type=>'', field=>''};
     $partition2 ||= {type=>'', field=>''};
-    return () if $partition1 == $partition2;
+    return if $partition1 == $partition2;
 
     if($partition1->{type} && !$partition2->{type}){
         my $change = sprintf("ALTER TABLE %s REMOVE PARTITIONING;\n", $name);
@@ -452,42 +452,41 @@ sub _diff_partitions {
         return $self->_replace_partitions($table2);
     }
 
-
-    if($partition2->{type} =~ /^(?:RANGE|LIST)$/){
-        my ($subpartitions1, $subpartitions2) = map{ $_->{subpartition} || {type=>''} }$partition1, $partition2;
-
-        if($subpartitions1->{type} && !$subpartitions2->{type}){
-            return sprintf('-- can not remove sub partition: SUBPARTITION BY %s (%s) SUBPARTITIONS %d', @{$subpartitions1}{qw/type field partitions/});
-        }
-        if($subpartitions1->{type} ne $subpartitions2->{type}){
-            return $self->_replace_partitions($table2);
-        }
-
-        return $self->_diff_list_partitions($table1, $table2);
-    }
-
-    if($partition2->{type} =~ /^(?:LINEAR\s+)?(?:HASH|KEY)$/){
-        my @changes;
-        my ($partitions1, $partitions2) = map{ $_->{partitions}->[0] || 0 }$partition1, $partition2;
-        if($partitions1 > $partitions2){
-            push @changes, sprintf("ALTER TABLE %s COALESCE PARTITION %d;\n", $name, $partitions1 - $partitions2);
-        }elsif($partitions1 < $partitions2){
-            push @changes, sprintf("ALTER TABLE %s ADD PARTITION PARTITIONS %d;\n", $name, $partitions2 - $partitions1);
-        }else{
-            push @changes, sprintf("ALTER TABLE %s PARTITION BY %s (%s);\n", $name, $partition2->{type}, $partition2->{field});
-        }
-        return @changes;
-    }
+    (my $diff_method = lc($partition2->{type})) =~ tr! !_!;
+    return $self->can("_diff_partitions_$diff_method")->($self, $table1, $table2);
 }
 
-sub _diff_list_partitions {
+sub _diff_partitions_hash {
     my ($self, $table1, $table2) = @_;
 
-    my $name     = $table1->name();
-    my $partition1 = $table1->partitions() || '';
-    my $partition2 = $table2->partitions() || '';
+    my $name = $table1->name();
+    my $partition1 = $table1->partitions();
+    my $partition2 = $table2->partitions();
 
-    return () unless $partition1 || $partition2;
+    my ($partitions1, $partitions2) = map{ $_->{partitions}->[0] || 0 }$partition1, $partition2;
+    if($partitions1 > $partitions2){
+        return sprintf("ALTER TABLE %s COALESCE PARTITION %d;\n", $name, $partitions1 - $partitions2);
+    }elsif($partitions1 < $partitions2){
+        return sprintf("ALTER TABLE %s ADD PARTITION PARTITIONS %d;\n", $name, $partitions2 - $partitions1);
+    }
+
+    return sprintf("ALTER TABLE %s PARTITION BY %s (%s);\n", $name, $partition2->{type}, $partition2->{field});
+}
+
+sub _diff_partitions_list {
+    my ($self, $table1, $table2) = @_;
+
+    my $name = $table1->name();
+    my $partition1 = $table1->partitions();
+    my $partition2 = $table2->partitions();
+
+    my ($subpartitions1, $subpartitions2) = map{ $_->{subpartition} || {type=>''} }$partition1, $partition2;
+    if($subpartitions1->{type} && !$subpartitions2->{type}){
+        return sprintf('-- can not remove sub partition: SUBPARTITION BY %s (%s) SUBPARTITIONS %d', @{$subpartitions1}{qw/type field partitions/});
+    }elsif($subpartitions1->{type} ne $subpartitions2->{type}){
+        return $self->_replace_partitions($table2);
+    }
+
 
     my @partitions1 = $partition1 ? @{$partition1->{partitions} || []} : ();
     my @partitions2 = $partition2 ? @{$partition2->{partitions} || []} : ();
@@ -522,6 +521,14 @@ sub _diff_list_partitions {
 
     return @changes;
 }
+{
+  no strict 'refs';
+  *_diff_partitions_range = \&_diff_partitions_list;
+  foreach(qw/linear_hash key linear_key/){
+      *{"_diff_partitions_$_"} = \&_diff_partitions_hash;
+  }
+}
+
 
 sub _load_database {
     my ($self, $arg, $authnum) = @_;
