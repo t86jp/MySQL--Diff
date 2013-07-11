@@ -2,6 +2,9 @@
 
 use strict;
 
+use Data::Dumper;
+sub ::p(@){ print Dumper(\@_);exit };
+
 use Test::More;
 use MySQL::Diff;
 use MySQL::Diff::Database;
@@ -186,13 +189,13 @@ ALTER TABLE `foo` DROP COLUMN `field`;
 ## +++ file: tmp.db2
 
 ALTER TABLE `foo` ADD COLUMN `field` blob;
-CREATE TABLE `bar` (
-  `id` int(11) NOT NULL auto_increment,
-  `ctime` datetime default NULL,
-  `utime` datetime default NULL,
-  `name` char(16) default NULL,
-  `age` int(11) default NULL,
-  PRIMARY KEY (`id`)
+CREATE TABLE bar (
+  id int(11) NOT NULL auto_increment,
+  ctime datetime default NULL,
+  utime datetime default NULL,
+  name char(16) default NULL,
+  age int(11) default NULL,
+  PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 ',
@@ -456,12 +459,12 @@ ALTER TABLE `baz` ADD INDEX `users name` (`firstname`,`surname`);
 my $BAIL = check_setup();
 plan skip_all => $BAIL  if($BAIL);
 
-my $total = scalar(keys %tests) * 5;
-plan tests => $total;
-
 use Data::Dumper;
 
 my @tests = (keys %tests); #keys %tests
+
+my $total = scalar(@tests) * 5;
+plan tests => $total;
 
 {
     my %debug = ( debug_file => 'debug.log', debug => 9 );

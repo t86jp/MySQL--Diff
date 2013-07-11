@@ -132,39 +132,65 @@ Returns 1 if given field is used as fulltext index field, otherwise returns 0.
 
 sub _escape {
     my $field = shift;
-    $field ? "`$field`" : $field;
+    return $field ? "`$field`" : $field;
 }
-
+sub _unescape {
+    (my $field = shift) =~ s/`//g;
+    return $field;
+}
 sub _escape_each_field {
     my $fields = shift;
     return join(',', (map{_escape($_)}split ',', $fields));
 }
 
-use Data::Dumper;
-sub p(@){ print Dumper(\@_);exit };
-sub def             { my $self = shift; return $self->{def};            }
-sub name            { my $self = shift; return _escape($self->{name});  }
-sub field           { my $self = shift; return _escape($self->{fields}{$_[0]}); }
-sub fields          {
+sub def {
+    my $self = shift;
+    return $self->{def};
+}
+sub name {
+    my $self = shift;
+    return _escape($self->{name});
+}
+sub field {
+    my $self = shift;
+    my $field = _unescape($_[0] || '');
+    return _escape($self->{fields}->{$field});
+}
+sub fields {
     my $self = shift;
     return { map{ _escape($_) => $self->{fields}->{$_} }keys%{$self->{fields}} };
 }
-sub primary_key     {
+sub primary_key {
     my $self = shift;
     (my $primary_key = $self->{primary_key}) =~ s/^\(|\)$//g;
     return sprintf('(%s)', _escape_each_field($primary_key));
 }
-sub indices         {
+sub indices {
     my $self = shift;
     return { map{ _escape($_) => _escape_each_field($self->{indices}->{$_}) }keys %{$self->{indices}} };
 }
-sub options         { my $self = shift; return $self->{options};        }
+sub options {
+    my $self = shift;
+    return $self->{options};
+}
 
-sub isa_field       { my $self = shift; return $_[0] && $self->{fields}{$_[0]}   ? 1 : 0; }
-sub isa_primary     { my $self = shift; return $_[0] && $self->{primary}{$_[0]}  ? 1 : 0; }
-sub isa_index       { my $self = shift; return $_[0] && $self->{indices}{$_[0]}  ? 1 : 0; }
-sub is_unique       { my $self = shift; return $_[0] && $self->{unique}{$_[0]}   ? 1 : 0; }
-sub is_fulltext     { my $self = shift; return $_[0] && $self->{fulltext}{$_[0]} ? 1 : 0; }
+{
+    sub _define_isa_method{
+        my $key = shift;
+        return sub{
+            my $self = shift;
+            my $field = _unescape($_[0] || '');
+            return $self->{$key}{$field} ? 1 : 0;
+        };
+    }
+
+    no strict 'refs';
+    *isa_field   = _define_isa_method('fields');
+    *isa_primary = _define_isa_method('primary');
+    *isa_index   = _define_isa_method('indices');
+    *is_unique   = _define_isa_method('unique');
+    *is_fulltext = _define_isa_method('fulltext');
+}
 
 # ------------------------------------------------------------------------------
 # Private Methods
