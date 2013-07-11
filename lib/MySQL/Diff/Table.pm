@@ -130,12 +130,34 @@ Returns 1 if given field is used as fulltext index field, otherwise returns 0.
 
 =cut
 
+sub _escape {
+    my $field = shift;
+    $field ? "`$field`" : $field;
+}
+
+sub _escape_each_field {
+    my $fields = shift;
+    return join(',', (map{_escape($_)}split ',', $fields));
+}
+
+use Data::Dumper;
+sub p(@){ print Dumper(\@_);exit };
 sub def             { my $self = shift; return $self->{def};            }
-sub name            { my $self = shift; return $self->{name};           }
-sub field           { my $self = shift; return $self->{fields}{$_[0]};  }
-sub fields          { my $self = shift; return $self->{fields};         }
-sub primary_key     { my $self = shift; return $self->{primary_key};    }
-sub indices         { my $self = shift; return $self->{indices};        }
+sub name            { my $self = shift; return _escape($self->{name});  }
+sub field           { my $self = shift; return _escape($self->{fields}{$_[0]}); }
+sub fields          {
+    my $self = shift;
+    return { map{ _escape($_) => $self->{fields}->{$_} }keys%{$self->{fields}} };
+}
+sub primary_key     {
+    my $self = shift;
+    (my $primary_key = $self->{primary_key}) =~ s/^\(|\)$//g;
+    return sprintf('(%s)', _escape_each_field($primary_key));
+}
+sub indices         {
+    my $self = shift;
+    return { map{ _escape($_) => _escape_each_field($self->{indices}->{$_}) }keys %{$self->{indices}} };
+}
 sub options         { my $self = shift; return $self->{options};        }
 
 sub isa_field       { my $self = shift; return $_[0] && $self->{fields}{$_[0]}   ? 1 : 0; }

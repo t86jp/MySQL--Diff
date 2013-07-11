@@ -102,6 +102,14 @@ CREATE TABLE baz (
   KEY (firstname, surname)
 );
 ',
+
+  baz4 => '
+CREATE TABLE baz (
+  firstname CHAR(16),
+  surname   CHAR(16),
+  KEY `users name` (firstname, surname)
+);
+',
 );
 
 my %tests = (
@@ -116,7 +124,7 @@ my %tests = (
 ## --- file: tmp.db1
 ## +++ file: tmp.db2
 
-ALTER TABLE foo ADD COLUMN field blob;
+ALTER TABLE `foo` ADD COLUMN `field` blob;
 ',
   ],
   
@@ -131,7 +139,7 @@ ALTER TABLE foo ADD COLUMN field blob;
 ## --- file: tmp.db1
 ## +++ file: tmp.db2
 
-ALTER TABLE foo DROP COLUMN field; # was blob
+ALTER TABLE `foo` DROP COLUMN `field`; # was blob
 ',
   ],
 
@@ -146,7 +154,7 @@ ALTER TABLE foo DROP COLUMN field; # was blob
 ## --- file: tmp.db1
 ## +++ file: tmp.db2
 
-ALTER TABLE foo CHANGE COLUMN field field tinyblob; # was blob
+ALTER TABLE `foo` CHANGE COLUMN `field` `field` tinyblob; # was blob
 '
   ],
 
@@ -162,7 +170,7 @@ ALTER TABLE foo CHANGE COLUMN field field tinyblob; # was blob
 ## --- file: tmp.db1
 ## +++ file: tmp.db2
 
-ALTER TABLE foo DROP COLUMN field;
+ALTER TABLE `foo` DROP COLUMN `field`;
 ',
   ],
 
@@ -177,14 +185,14 @@ ALTER TABLE foo DROP COLUMN field;
 ## --- file: tmp.db1
 ## +++ file: tmp.db2
 
-ALTER TABLE foo ADD COLUMN field blob;
-CREATE TABLE bar (
-  id int(11) NOT NULL auto_increment,
-  ctime datetime default NULL,
-  utime datetime default NULL,
-  name char(16) default NULL,
-  age int(11) default NULL,
-  PRIMARY KEY (id)
+ALTER TABLE `foo` ADD COLUMN `field` blob;
+CREATE TABLE `bar` (
+  `id` int(11) NOT NULL auto_increment,
+  `ctime` datetime default NULL,
+  `utime` datetime default NULL,
+  `name` char(16) default NULL,
+  `age` int(11) default NULL,
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 ',
@@ -201,9 +209,9 @@ CREATE TABLE bar (
 ## --- file: tmp.db1
 ## +++ file: tmp.db2
 
-DROP TABLE bar;
+DROP TABLE `bar`;
 
-ALTER TABLE foo ADD COLUMN field blob;
+ALTER TABLE `foo` ADD COLUMN `field` blob;
 ',
   ],
 
@@ -219,7 +227,7 @@ ALTER TABLE foo ADD COLUMN field blob;
 ## --- file: tmp.db1
 ## +++ file: tmp.db2
 
-ALTER TABLE foo ADD COLUMN field blob;
+ALTER TABLE `foo` ADD COLUMN `field` blob;
 ',
   ],
 
@@ -235,7 +243,7 @@ ALTER TABLE foo ADD COLUMN field blob;
 ## --- file: tmp.db1
 ## +++ file: tmp.db2
 
-ALTER TABLE foo ADD COLUMN field blob;
+ALTER TABLE `foo` ADD COLUMN `field` blob;
 ',
   ],
 
@@ -252,8 +260,8 @@ ALTER TABLE foo ADD COLUMN field blob;
 ## --- file: tmp.db1
 ## +++ file: tmp.db2
 
-ALTER TABLE bar ADD UNIQUE name (name,age);
-ALTER TABLE baz ADD UNIQUE firstname (firstname,surname);
+ALTER TABLE `bar` ADD UNIQUE `name` (`name`,`age`);
+ALTER TABLE `baz` ADD UNIQUE `firstname` (`firstname`,`surname`);
 ',
   ],
 
@@ -269,10 +277,10 @@ ALTER TABLE baz ADD UNIQUE firstname (firstname,surname);
 ## --- file: tmp.db1
 ## +++ file: tmp.db2
 
-ALTER TABLE foo ADD INDEX (id); # auto columns must always be indexed
-ALTER TABLE foo DROP PRIMARY KEY; # was (id)
-ALTER TABLE foo ADD PRIMARY KEY (id,foreign_id);
-ALTER TABLE foo DROP INDEX id;
+ALTER TABLE `foo` ADD INDEX (`id`); # auto columns must always be indexed
+ALTER TABLE `foo` DROP PRIMARY KEY; # was (`id`)
+ALTER TABLE `foo` ADD PRIMARY KEY (`id`,`foreign_id`);
+ALTER TABLE `foo` DROP INDEX `id`;
 ',
   ],
       
@@ -288,10 +296,10 @@ ALTER TABLE foo DROP INDEX id;
 ## --- file: tmp.db1
 ## +++ file: tmp.db2
 
-ALTER TABLE foo ADD INDEX (id); # auto columns must always be indexed
-ALTER TABLE foo DROP PRIMARY KEY; # was (id,foreign_id)
-ALTER TABLE foo ADD PRIMARY KEY (id);
-ALTER TABLE foo DROP INDEX id;
+ALTER TABLE `foo` ADD INDEX (`id`); # auto columns must always be indexed
+ALTER TABLE `foo` DROP PRIMARY KEY; # was (`id`,`foreign_id`)
+ALTER TABLE `foo` ADD PRIMARY KEY (`id`);
+ALTER TABLE `foo` DROP INDEX `id`;
 ',
   ],
 
@@ -307,7 +315,7 @@ ALTER TABLE foo DROP INDEX id;
 ## --- file: tmp.db1
 ## +++ file: tmp.db2
 
-ALTER TABLE bar ADD UNIQUE name (name,age);
+ALTER TABLE `bar` ADD UNIQUE `name` (`name`,`age`);
 ',
   ],
       
@@ -323,7 +331,7 @@ ALTER TABLE bar ADD UNIQUE name (name,age);
 ## --- file: tmp.db1
 ## +++ file: tmp.db2
 
-ALTER TABLE bar DROP INDEX name; # was UNIQUE (name,age)
+ALTER TABLE `bar` DROP INDEX `name`; # was UNIQUE (`name`,`age`)
 ',
   ],
       
@@ -339,8 +347,8 @@ ALTER TABLE bar DROP INDEX name; # was UNIQUE (name,age)
 ## --- file: tmp.db1
 ## +++ file: tmp.db2
 
-ALTER TABLE bar DROP INDEX name; # was UNIQUE (name,age)
-ALTER TABLE bar ADD UNIQUE id (id,name,age);
+ALTER TABLE `bar` DROP INDEX `name`; # was UNIQUE (`name`,`age`)
+ALTER TABLE `bar` ADD UNIQUE `id` (`id`,`name`,`age`);
 ',
   ],
 
@@ -356,8 +364,8 @@ ALTER TABLE bar ADD UNIQUE id (id,name,age);
 ## --- file: tmp.db1
 ## +++ file: tmp.db2
 
-ALTER TABLE bar DROP INDEX id; # was UNIQUE (id,name,age)
-ALTER TABLE bar ADD UNIQUE name (name,age);
+ALTER TABLE `bar` DROP INDEX `id`; # was UNIQUE (`id`,`name`,`age`)
+ALTER TABLE `bar` ADD UNIQUE `name` (`name`,`age`);
 ',
   ],
 
@@ -373,7 +381,7 @@ ALTER TABLE bar ADD UNIQUE name (name,age);
 ## --- file: tmp.db1
 ## +++ file: tmp.db2
 
-ALTER TABLE bar ADD UNIQUE id (id,name,age);
+ALTER TABLE `bar` ADD UNIQUE `id` (`id`,`name`,`age`);
 ',
   ],
 
@@ -389,7 +397,7 @@ ALTER TABLE bar ADD UNIQUE id (id,name,age);
 ## --- file: tmp.db1
 ## +++ file: tmp.db2
 
-ALTER TABLE bar DROP INDEX id; # was UNIQUE (id,name,age)
+ALTER TABLE `bar` DROP INDEX `id`; # was UNIQUE (`id`,`name`,`age`)
 ',
   ],
 
@@ -405,8 +413,8 @@ ALTER TABLE bar DROP INDEX id; # was UNIQUE (id,name,age)
 ## --- file: tmp.db1
 ## +++ file: tmp.db2
 
-ALTER TABLE baz DROP INDEX firstname; # was UNIQUE (firstname,surname)
-ALTER TABLE baz ADD INDEX firstname (firstname,surname);
+ALTER TABLE `baz` DROP INDEX `firstname`; # was UNIQUE (`firstname`,`surname`)
+ALTER TABLE `baz` ADD INDEX `firstname` (`firstname`,`surname`);
 ',
   ],
 
@@ -422,8 +430,25 @@ ALTER TABLE baz ADD INDEX firstname (firstname,surname);
 ## --- file: tmp.db1
 ## +++ file: tmp.db2
 
-ALTER TABLE baz DROP INDEX firstname; # was INDEX (firstname,surname)
-ALTER TABLE baz ADD UNIQUE firstname (firstname,surname);
+ALTER TABLE `baz` DROP INDEX `firstname`; # was INDEX (`firstname`,`surname`)
+ALTER TABLE `baz` ADD UNIQUE `firstname` (`firstname`,`surname`);
+',
+  ],
+
+  'alter unique index 3' =>
+  [
+    {},
+    $tables{baz2},
+    $tables{baz4},
+    '## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE `baz` DROP INDEX `firstname`; # was INDEX (`firstname`,`surname`)
+ALTER TABLE `baz` ADD INDEX `users name` (`firstname`,`surname`);
 ',
   ],
 );
