@@ -51,6 +51,14 @@ CREATE TABLE foo (
 );
 ',
 
+  foo5 => '
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  `foreign id` INT(11) NOT NULL, 
+  PRIMARY KEY (id)
+);
+',
+
   bar1 => '
 CREATE TABLE bar (
   id     INT AUTO_INCREMENT NOT NULL PRIMARY KEY, 
@@ -128,6 +136,22 @@ my %tests = (
 ## +++ file: tmp.db2
 
 ALTER TABLE `foo` ADD COLUMN `field` blob;
+',
+  ],
+
+  'add column 2' =>
+  [
+    {},
+    @tables{qw/foo1 foo5/},
+    '## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE `foo` DROP COLUMN `foreign_id`; # was int(11) NOT NULL
+ALTER TABLE `foo` ADD COLUMN `foreign id` int(11) NOT NULL;
 ',
   ],
   
@@ -450,7 +474,7 @@ ALTER TABLE `baz` ADD UNIQUE `firstname` (`firstname`,`surname`);
 ## --- file: tmp.db1
 ## +++ file: tmp.db2
 
-ALTER TABLE `baz` DROP INDEX `firstname`; # was INDEX (`firstname`,`surname`)
+ALTER TABLE `baz` DROP INDEX `firstname`; # was UNIQUE (`firstname`,`surname`)
 ALTER TABLE `baz` ADD INDEX `users name` (`firstname`,`surname`);
 ',
   ],
@@ -480,8 +504,8 @@ plan tests => $total;
       my $diff = MySQL::Diff->new(%$opts, %debug);
       isa_ok($diff,'MySQL::Diff');
 
-      my $db1 = get_db($db1_defs, 1);
       my $db2 = get_db($db2_defs, 2);
+      my $db1 = get_db($db1_defs, 1);
 
       my $d1 = $diff->register_db($db1, 1);
       my $d2 = $diff->register_db($db2, 2);

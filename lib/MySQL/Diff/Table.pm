@@ -131,7 +131,7 @@ Returns 1 if given field is used as fulltext index field, otherwise returns 0.
 =cut
 
 sub _escape {
-    my $field = shift;
+    (my $field = shift || '') =~ s!`!!g;
     return $field ? "`$field`" : $field;
 }
 sub _unescape {
@@ -162,7 +162,7 @@ sub fields {
 }
 sub primary_key {
     my $self = shift;
-    (my $primary_key = $self->{primary_key}) =~ s/^\(|\)$//g;
+    (my $primary_key = $self->{primary_key} || '') =~ s/^\(|\)$//g;
     return sprintf('(%s)', _escape_each_field($primary_key));
 }
 sub indices {
@@ -198,15 +198,14 @@ sub options {
 sub _parse {
     my $self = shift;
 
-    $self->{def} =~ s/`([^`]+)`/$1/gs;  # later versions quote names
     $self->{def} =~ s/\n+/\n/;
     $self->{lines} = [ grep ! /^\s*$/, split /(?=^)/m, $self->{def} ];
     my @lines = @{$self->{lines}};
     debug(4,"parsing table def '$self->{def}'");
 
     my $name;
-    if ($lines[0] =~ /^\s*create\s+table\s+(\S+)\s+\(\s*$/i) {
-        $self->{name} = $1;
+    if ($lines[0] =~ /^\s*create\s+table\s+(?:(`[^`]+`|\S+))\s+\(\s*$/i) {
+        $self->{name} = _unescape($1);
         debug(3,"got table name '$self->{name}'");
         shift @lines;
     } else {
@@ -218,19 +217,19 @@ sub _parse {
         s/^\s*(.*?),?\s*$/$1/; # trim whitespace and trailing commas
         debug(4,"line: [$_]");
         if (/^PRIMARY\s+KEY\s+(.+)$/) {
-            my $primary = $1;
+            my $primary = _unescape($1);
             croak "two primary keys in table '$self->{name}': '$primary', '$self->{primary_key}'\n"
                 if $self->{primary_key};
             debug(4,"got primary key $primary");
             $self->{primary_key} = $primary;
             $primary =~ s/\((.*?)\)/$1/;
-            $self->{primary}{$_} = 1    for(split(/,/, $primary));
+            $self->{primary}{$_} = 1    for(map{_unescape($_)}split(/,/, $primary));
 
             next;
         }
 
-        if (/^(KEY|UNIQUE(?: KEY)?)\s+(\S+?)(?:\s+USING\s+(?:BTREE|HASH|RTREE))?\s*\((.*)\)$/) {
-            my ($type, $key, $val) = ($1, $2, $3);
+        if (/^(KEY|UNIQUE(?: KEY)?)\s+(?:(`[^`]+`|\S+))(?:\s+USING\s+(?:BTREE|HASH|RTREE))?\s*\((.*)\)$/) {
+            my ($type, $key, $val) = ($1, _unescape($2), $3);
             croak "index '$key' duplicated in table '$name'\n"
                 if $self->{indices}{$key};
             $self->{indices}{$key} = $val;
@@ -239,8 +238,8 @@ sub _parse {
             next;
         }
 
-        if (/^(FULLTEXT(?:\s+KEY|INDEX)?)\s+(\S+?)\s*\((.*)\)$/) {
-            my ($type, $key, $val) = ($1, $2, $3);
+        if (/^(FULLTEXT(?:\s+KEY|INDEX)?)\s+(?:(`[^`]+`|\S+))\s*\((.*)\)$/) {
+            my ($type, $key, $val) = ($1, _unescape($2), $3);
             croak "FULLTEXT index '$key' duplicated in table '$name'\n"
                 if $self->{fulltext}{$key};
             $self->{indices}{$key} = $val;
@@ -255,8 +254,8 @@ sub _parse {
             last;
         }
 
-        if (/^(\S+)\s*(.*)/) {
-            my ($field, $fdef) = ($1, $2);
+        if (/^(?:(`[^`]+`|\S+))\s*(.*)/) {
+            my ($field, $fdef) = (_unescape($1), $2);
             croak "definition for field '$field' duplicated in table '$name'\n"
                 if $self->{fields}{$field};
             $self->{fields}{$field} = $fdef;
