@@ -189,12 +189,16 @@ EOF
 
 sub _diff_tables {
     my $self = shift;
-    my @changes = ( 
-        $self->_diff_fields(@_),
-        $self->_diff_indices(@_),
-        $self->_diff_primary_key(@_),
-        $self->_diff_options(@_)        
-    );
+    my @params = @_;
+
+    $self->{changes} = {};
+    my @order = qw/fields indices primary_key options partitions/;
+    foreach(@order){
+        my $method = "_diff_$_";
+        $self->{changes}->{$_} = [$self->$method(@params)];
+    }
+    my @changes = map{ @{$self->{changes}->{$_}} }@order;
+    delete $self->{changes};
 
     $changes[-1] =~ s/\n*$/\n/  if (@changes);
     return @changes;
@@ -411,6 +415,121 @@ sub _diff_options {
 
     return @changes;
 }
+
+sub _replace_partitions{
+    my ($self, $table) = @_;
+
+    my $name = $table->name();
+    my $partitions = $table->partitions() or return;
+
+    my $def = $partitions->def;
+    $def =~ s/[\r\n]+/ /g;
+    return sprintf("ALTER TABLE %s %s;\n", $name, $def);
+}
+
+sub _diff_partitions {
+    my ($self, $table1, $table2) = @_;
+
+    my $partition1 = $table1->partitions();
+    my $partition2 = $table2->partitions();
+
+    return unless $partition1 || $partition2;
+    return if $partition1 == $partition2;
+
+    if($partition1 && !$partition2){
+        # TODO mysql version check: remove partitioning can not use less than 5.1.8
+        my $change = sprintf("ALTER TABLE %s REMOVE PARTITIONING;\n", $table1->name());
+        if(@{$self->{changes}->{primary_key}}){
+            # set to remove partition before modify the primary key
+            $self->{changes}->{primary_key}->[0] = $change. $self->{changes}->{primary_key}->[0];
+            return;
+        }
+        return $change;
+    }elsif(!$partition1 && $partition2){
+        return $self->_replace_partitions($table2);
+    }
+
+    if($partition1->type ne $partition2->type || $partition1->field ne $partition2->field){
+        return $self->_replace_partitions($table2);
+    }
+
+    (my $diff_method = lc($partition2->type)) =~ tr! !_!;
+    return $self->can("_diff_partitions_$diff_method")->($self, $table1, $table2);
+}
+
+sub _diff_partitions_hash {
+    my ($self, $table1, $table2) = @_;
+
+    my $name = $table1->name();
+    my $partition1 = $table1->partitions();
+    my $partition2 = $table2->partitions();
+
+    my ($partitions1, $partitions2) = map{ $_->partitions->[0] || 0 }$partition1, $partition2;
+    if($partitions1 > $partitions2){
+        return sprintf("ALTER TABLE %s COALESCE PARTITION %d;\n", $name, $partitions1 - $partitions2);
+    }elsif($partitions1 < $partitions2){
+        return sprintf("ALTER TABLE %s ADD PARTITION PARTITIONS %d;\n", $name, $partitions2 - $partitions1);
+    }
+
+    return sprintf("ALTER TABLE %s PARTITION BY %s (%s);\n", $name, $partition2->type, $partition2->field);
+}
+
+sub _diff_partitions_list {
+    my ($self, $table1, $table2) = @_;
+
+    my $partition1 = $table1->partitions();
+    my $partition2 = $table2->partitions();
+
+    my ($subpartitions1, $subpartitions2) = map{ $_->subpartition || {type=>''} }$partition1, $partition2;
+    if($subpartitions1->{type} && !$subpartitions2->{type}){
+        return sprintf('-- can not remove sub partition: SUBPARTITION BY %s (%s) SUBPARTITIONS %d', @{$subpartitions1}{qw/type field partitions/});
+    }elsif($subpartitions1->{type} ne $subpartitions2->{type}){
+        return $self->_replace_partitions($table2);
+    }
+
+
+    my @partitions1 = $partition1 ? @{$partition1->partitions || []} : ();
+    my @partitions2 = $partition2 ? @{$partition2->partitions || []} : ();
+
+    unless(@partitions1){
+        return $self->_replace_partitions($table2);
+    }
+
+    my %map = map{ $_ => 1 }map{(s!,?\s*$!!, $_)[-1]}@partitions1;
+    $map{$_} = $map{$_} ? 0 : 2 foreach map{(s!,?\s*$!!, $_)[-1]}@partitions2;
+
+    my @add = grep{$map{$_} == 2} keys %map;
+    my @drop = grep{$map{$_} == 1} keys %map;
+
+    my $name = $table1->name();
+    my @changes;
+    foreach(@drop){
+        my ($partition_name) = $_ =~ m!^PARTITION\s+([^\s]+)!;
+        push @changes, sprintf("ALTER TABLE %s DROP PARTITION %s;\n", $name, $partition_name);
+    }
+
+    if(my ($max_partition) = grep{ /\s+MAXVALUE\s+/ }@partitions1){
+        my ($max_name) = $max_partition =~ m!^PARTITION\s+([^\s]+)!;
+        foreach(@add){
+            my @partitions = ($_, $max_partition);
+            push @changes, sprintf("ALTER TABLE %s REORGANIZE PARTITION %s INTO (%s);\n", $name, $max_name, join(', ', @partitions));
+        }
+    }else{
+        foreach(@add){
+            push @changes, sprintf("ALTER TABLE %s ADD PARTITION (%s);\n", $name, $_);
+        }
+    }
+
+    return @changes;
+}
+{
+  no strict 'refs';
+  *_diff_partitions_range = \&_diff_partitions_list;
+  foreach(qw/linear_hash key linear_key/){
+      *{"_diff_partitions_$_"} = \&_diff_partitions_hash;
+  }
+}
+
 
 sub _load_database {
     my ($self, $arg, $authnum) = @_;

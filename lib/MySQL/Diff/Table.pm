@@ -173,6 +173,10 @@ sub options {
     my $self = shift;
     return $self->{options};
 }
+sub partitions {
+    my $self = shift;
+    return $self->{partitions};
+}
 
 {
     sub _define_isa_method{
@@ -212,9 +216,12 @@ sub _parse {
         croak "couldn't figure out table name";
     }
 
+    my $partitions = '';
+    my $is_partition = 0;
     while (@lines) {
         $_ = shift @lines;
-        s/^\s*(.*?),?\s*$/$1/; # trim whitespace and trailing commas
+        s!^\s+|\s+$!!g;
+        s/^(.*?),?$/$1/ unless $is_partition; # trim whitespace and trailing commas
         debug(4,"line: [$_]");
         if (/^PRIMARY\s+KEY\s+(.+)$/) {
             my $primary = _unescape($1);
@@ -248,10 +255,22 @@ sub _parse {
             next;
         }
 
-        if (/^\)\s*(.*?);$/) { # end of table definition
+        if (/^\)\s*(.*?);?$/) {
             $self->{options} = $1;
             debug(4,"got table options '$self->{options}'");
-            last;
+            next;
+        }
+
+        if ($self->{options} && m#^/\*!50\d{3}\s+PARTITION\s+#) {
+            $partitions = $_;
+            $is_partition = 1;
+            debug(4,"got table partitions '$_'");
+            next;
+        }elsif($is_partition){
+            $partitions .= "\n$_";
+            debug(4,"got table partitions '$_'");
+            $is_partition = 0 if m!\*/;$!;
+            next;
         }
 
         if (/^(?:(`[^`]+`|\S+))\s*(.*)/) {
@@ -265,6 +284,9 @@ sub _parse {
 
         croak "unparsable line in definition for table '$self->{name}':\n$_";
     }
+    if($partitions){
+      $self->{partitions} = MySQL::Diff::Table::Partition->new(def => $partitions);
+    }
 
     warn "table '$self->{name}' didn't have terminator\n"
         unless defined $self->{options};
@@ -275,6 +297,122 @@ sub _parse {
     warn "table '$self->{name}' had trailing garbage:\n", join '', @lines
         if @lines;
 }
+
+
+package MySQL::Diff::Table::Partition;
+
+use warnings;
+use strict;
+
+use Carp qw(:DEFAULT);
+use MySQL::Diff::Utils qw(debug);
+
+use overload
+  'bool' => sub{ !!ref($_[0]) },
+  '==' => \&_cmp,
+  '!=' => \&_not_cmp,
+;
+
+sub def{
+    my $def = shift->{def};
+
+    $def =~ s!;$!!;
+    $def =~ s{(?:^/\*!50\d+\s+)|(?:\s*\*/$)}{}g;
+    return $def;
+}
+
+sub new {
+    my $class = shift;
+    my %hash  = @_;
+    my $self = {};
+    bless $self, ref $class || $class;
+
+    $self->{$_} = $hash{$_} for(keys %hash);
+
+    debug(3,"\nconstructing new MySQL::Diff::Table::Partition");
+    croak "MySQL::Diff::Table::Partition::new called without def params" unless $self->{def};
+    $self->_parse;
+    return $self;
+}
+
+sub AUTOLOAD {
+    our $AUTOLOAD;
+    (my $prop = $AUTOLOAD) =~ s!.*::!!;
+
+    no strict 'refs';
+    *$prop = sub{ shift->{$prop} };
+
+    goto \&$prop;
+}
+
+# ------------------------------------------------------------------------------
+# Private Methods
+
+sub _parse {
+    my $self = shift;
+
+    my $def = $self->def();
+
+    if($def =~ s!^\s*PARTITION\s*BY\s*((?:LINEAR\s+)?(?:HASH|KEY))\s*\((.*)\)[\r\n]*(?:PARTITIONS\s+(\d+))?[\r\n]*!!){
+      $self->{type} = $1;
+      $self->{field} = $2;
+      $self->{partitions} = [$3];
+    }elsif($def =~ s!^\s*PARTITION\s*BY\s*(LIST|RANGE)\s*\((.*)\)[\r\n]*!!){
+      $self->{type} = $1;
+      $self->{field} = $2;
+
+      if($def =~ s!^\s*SUBPARTITION\s*BY\s*([^\s]+)\s*\((.*)\)[\r\n\s]*SUBPARTITIONS\s+(\d+)[\r\n]*!!){
+        $self->{subpartition} = {
+          'type' => $1,
+          'field' => $2,
+          'partitions' => $3,
+        };
+      }elsif($def =~ s!^\s*SUBPARTITION\s*BY\s*([^\s]+)\s*\((.*)\)[\r\n]*!!){
+        $self->{subpartition} = {
+          'type' => $1,
+          'field' => $2,
+          'partitions' => 0,
+        };
+        $def =~ s{^[\r\n\s]*\(|\)[\r\n\s]*$}{}g;
+        $self->{partitions} = [$def =~ /(PARTITION\s+.+?\(SUBPARTITION\s+.+?\)(?:,|$))[\r\n]*/smg];
+        $def = '';
+      }
+      if($def){
+        $def =~ s{^[\r\n\s]*\(|\)[\r\n\s]*$}{}g;
+        $self->{partitions} = [split /[\r\n]+/, $def];
+      }
+    }
+}
+
+sub _not_cmp{
+    my ($self, $b) = @_;
+    return $self->_cmp($b) ? 0 : 1;
+}
+
+sub _cmp{
+    my ($self, $b) = @_;
+    return 0 unless $b || ref($self) eq ref($b);
+
+    foreach(qw/type field/){
+        return 0 unless $self->{$_} eq $b->{$_};
+    }
+
+    if($self->{subpartition} || $b->{subpartition}){
+        foreach(qw/type field partitions/){
+            return 0 unless +(($self->{subpartition} || {})->{$_} || '') eq (($b->{subpartition} || {})->{$_} || '');
+        }
+    }
+
+    if($self->{partitions} || $b->{partitions}){
+        return 0 unless @{$self->{partitions} || []} == @{$b->{partitions} || []};
+        foreach my $p(grep{$_}@{$self->{partitions}}){
+            return 0 unless grep{ $p eq $_ }grep{$_}@{$b->{partitions}};
+        }
+    }
+
+    return 1;
+}
+
 
 1;
 

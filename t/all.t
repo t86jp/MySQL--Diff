@@ -59,6 +59,14 @@ CREATE TABLE foo (
 );
 ',
 
+  foo6 => '
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  foreign_id INT(11) NOT NULL,
+  PRIMARY KEY (id)
+) PARTITION BY HASH (id);
+',
+
   bar1 => '
 CREATE TABLE bar (
   id     INT AUTO_INCREMENT NOT NULL PRIMARY KEY, 
@@ -121,6 +129,191 @@ CREATE TABLE baz (
   KEY `users name` (firstname, surname)
 );
 ',
+
+  qux1 => q{
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (id)
+);
+},
+
+  qux2 => q{
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (id)
+) PARTITION BY HASH (id);
+},
+
+  qux3 => q{
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (id)
+) PARTITION BY LINEAR HASH (id);
+},
+
+  qux4 => q{
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (id)
+) PARTITION BY KEY (id);
+},
+
+  qux5 => q{
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (id, create_at)
+) PARTITION BY RANGE (TO_DAYS(create_at)) (
+  PARTITION p20130314 VALUES LESS THAN (735306),
+  PARTITION p20130328 VALUES LESS THAN (735320)
+);
+},
+
+  qux6 => q{
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (id, create_at)
+) PARTITION BY LIST (MONTH(create_at)) (
+  PARTITION odd VALUES IN (1,3,5,7,9,11),
+  PARTITION even VALUES IN (2,4,6,8,10,12)
+);
+},
+
+  qux7 => q{
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (id, create_at)
+) PARTITION BY RANGE (TO_DAYS(create_at)) (
+  PARTITION p20130314 VALUES LESS THAN (735306),
+  PARTITION p20130328 VALUES LESS THAN (735320),
+  PARTITION p20130329 VALUES LESS THAN (735321)
+);
+},
+
+  qux8 => q{
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (id, create_at)
+) PARTITION BY RANGE (TO_DAYS(create_at))
+SUBPARTITION BY HASH (`id`)
+SUBPARTITIONS 2
+(
+  PARTITION p20130314 VALUES LESS THAN (735306),
+  PARTITION p20130328 VALUES LESS THAN (735320),
+  PARTITION p20130329 VALUES LESS THAN (735321)
+)
+},
+
+  qux9 => q{
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (id, create_at)
+) PARTITION BY RANGE (TO_DAYS(create_at)) (
+  PARTITION p20130314 VALUES LESS THAN (735306),
+  PARTITION p20130328 VALUES LESS THAN (735320),
+  PARTITION pmax VALUES LESS THAN MAXVALUE
+);
+},
+
+  qux10 => q{
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (id, create_at)
+) PARTITION BY RANGE (TO_DAYS(create_at)) (
+  PARTITION p20130314 VALUES LESS THAN (735306),
+  PARTITION p20130328 VALUES LESS THAN (735320),
+  PARTITION p20130329 VALUES LESS THAN (735321),
+  PARTITION pmax VALUES LESS THAN MAXVALUE
+);
+},
+
+  qux11 => q{
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (id)
+) PARTITION BY HASH (id) PARTITIONS 12;
+},
+
+  qux12 => q{
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (id)
+) PARTITION BY HASH (id) PARTITIONS 8;
+},
+
+  qux13 => q{
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (id)
+) PARTITION BY LINEAR HASH (id) PARTITIONS 12;
+},
+
+  qux14 => q{
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (id)
+) PARTITION BY LINEAR HASH (id) PARTITIONS 8;
+},
+
+  qux15 => q{
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (id)
+) PARTITION BY KEY (id) PARTITIONS 12;
+},
+
+  qux16 => q{
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (id)
+) PARTITION BY KEY (id) PARTITIONS 8;
+},
+
+  qux17 => q{
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (id)
+) PARTITION BY LINEAR KEY (id);
+},
+
+  qux18 => q{
+CREATE TABLE foo (
+  id INT(11) NOT NULL auto_increment,
+  create_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (id, create_at)
+) PARTITION BY RANGE (TO_DAYS(create_at))
+SUBPARTITION BY HASH (`id`)
+(
+  PARTITION p20130314 VALUES LESS THAN (735306) (
+    SUBPARTITION s0,
+    SUBPARTITION s1
+  ),
+  PARTITION p20130328 VALUES LESS THAN (735320) (
+    SUBPARTITION s2,
+    SUBPARTITION s3
+  ),
+  PARTITION p20130329 VALUES LESS THAN (735321) (
+    SUBPARTITION s4,
+    SUBPARTITION s5
+  )
+)
+},
 );
 
 my %tests = (
@@ -213,14 +406,14 @@ ALTER TABLE `foo` DROP COLUMN `field`;
 ## +++ file: tmp.db2
 
 ALTER TABLE `foo` ADD COLUMN `field` blob;
-CREATE TABLE bar (
-  id int(11) NOT NULL auto_increment,
-  ctime datetime default NULL,
-  utime datetime default NULL,
-  name char(16) default NULL,
-  age int(11) default NULL,
-  PRIMARY KEY (id)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+CREATE TABLE `bar` (
+  `id` int(11) NOT NULL auto_increment,
+  `ctime` datetime default NULL,
+  `utime` datetime default NULL,
+  `name` char(16) default NULL,
+  `age` int(11) default NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 ',
   ],
@@ -478,7 +671,417 @@ ALTER TABLE `baz` DROP INDEX `firstname`; # was UNIQUE (`firstname`,`surname`)
 ALTER TABLE `baz` ADD INDEX `users name` (`firstname`,`surname`);
 ',
   ],
+
+
+  'add partition by hash' =>
+  [
+    {},
+    $tables{qux1},
+    $tables{qux2},
+    '## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE `foo` PARTITION BY HASH (id);
+',
+  ],
+
+  'add partition by hash' =>
+  [
+    {},
+    $tables{qux1},
+    $tables{qux2},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE `foo` PARTITION BY HASH (id);
+},
+  ],
+
+  'add partition by linear hash' =>
+  [
+    {},
+    $tables{qux1},
+    $tables{qux3},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE `foo` PARTITION BY LINEAR HASH (id);
+},
+  ],
+
+  'add partition by key' =>
+  [
+    {},
+    $tables{qux1},
+    $tables{qux4},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE `foo` PARTITION BY KEY (id);
+},
+  ],
+
+  'add partition by linear key' =>
+  [
+    {},
+    $tables{qux1},
+    $tables{qux17},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE `foo` PARTITION BY LINEAR KEY (id);
+},
+  ],
+
+  'add partition by range' =>
+  [
+    {},
+    $tables{qux1},
+    $tables{qux5},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE `foo` ADD INDEX (`id`); # auto columns must always be indexed
+ALTER TABLE `foo` DROP PRIMARY KEY; # was (`id`)
+ALTER TABLE `foo` ADD PRIMARY KEY (`id`,`create_at`);
+ALTER TABLE `foo` DROP INDEX `id`;
+ALTER TABLE `foo` PARTITION BY RANGE (TO_DAYS(create_at)) (PARTITION p20130314 VALUES LESS THAN (735306) ENGINE = InnoDB, PARTITION p20130328 VALUES LESS THAN (735320) ENGINE = InnoDB);
+},
+  ],
+
+  'add partition by list' =>
+  [
+    {},
+    $tables{qux1},
+    $tables{qux6},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE `foo` ADD INDEX (`id`); # auto columns must always be indexed
+ALTER TABLE `foo` DROP PRIMARY KEY; # was (`id`)
+ALTER TABLE `foo` ADD PRIMARY KEY (`id`,`create_at`);
+ALTER TABLE `foo` DROP INDEX `id`;
+ALTER TABLE `foo` PARTITION BY LIST (MONTH(create_at)) (PARTITION odd VALUES IN (1,3,5,7,9,11) ENGINE = InnoDB, PARTITION even VALUES IN (2,4,6,8,10,12) ENGINE = InnoDB);
+},
+  ],
+
+  'add list partition' =>
+  [
+    {},
+    $tables{qux5},
+    $tables{qux7},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE `foo` ADD PARTITION (PARTITION p20130329 VALUES LESS THAN (735321) ENGINE = InnoDB);
+},
+  ],
+
+  'drop range partition' =>
+  [
+    {},
+    $tables{qux7},
+    $tables{qux5},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE `foo` DROP PARTITION p20130329;
+},
+  ],
+
+  'add sub partition' =>
+  [
+    {},
+    $tables{qux7},
+    $tables{qux8},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE `foo` PARTITION BY RANGE (TO_DAYS(create_at)) SUBPARTITION BY HASH (id) SUBPARTITIONS 2 (PARTITION p20130314 VALUES LESS THAN (735306) ENGINE = InnoDB, PARTITION p20130328 VALUES LESS THAN (735320) ENGINE = InnoDB, PARTITION p20130329 VALUES LESS THAN (735321) ENGINE = InnoDB);
+},
+  ],
+
+  'add sub partition' =>
+  [
+    {},
+    $tables{qux7},
+    $tables{qux18},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE `foo` PARTITION BY RANGE (TO_DAYS(create_at)) SUBPARTITION BY HASH (`id`) (PARTITION p20130314 VALUES LESS THAN (735306) (SUBPARTITION s0 ENGINE = InnoDB, SUBPARTITION s1 ENGINE = InnoDB), PARTITION p20130328 VALUES LESS THAN (735320) (SUBPARTITION s2 ENGINE = InnoDB, SUBPARTITION s3 ENGINE = InnoDB), PARTITION p20130329 VALUES LESS THAN (735321) (SUBPARTITION s4 ENGINE = InnoDB, SUBPARTITION s5 ENGINE = InnoDB));
+},
+  ],
+
+  'add list partition with maxvalue' =>
+  [
+    {},
+    $tables{qux9},
+    $tables{qux10},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE `foo` REORGANIZE PARTITION pmax INTO (PARTITION p20130329 VALUES LESS THAN (735321) ENGINE = InnoDB, PARTITION pmax VALUES LESS THAN MAXVALUE ENGINE = InnoDB);
+},
+  ],
+
+  'remove hash partition' =>
+  [
+    {},
+    $tables{qux2},
+    $tables{qux1},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE `foo` REMOVE PARTITIONING;
+},
+  ],
+
+  'remove linear hash partition' =>
+  [
+    {},
+    $tables{qux3},
+    $tables{qux1},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE `foo` REMOVE PARTITIONING;
+},
+  ],
+
+  'remove key partition' =>
+  [
+    {},
+    $tables{qux4},
+    $tables{qux1},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE `foo` REMOVE PARTITIONING;
+},
+  ],
+
+  'remove linear key partition' =>
+  [
+    {},
+    $tables{qux17},
+    $tables{qux1},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE `foo` REMOVE PARTITIONING;
+},
+  ],
+
+  'remove range partition' =>
+  [
+    {},
+    $tables{qux5},
+    $tables{qux1},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE `foo` REMOVE PARTITIONING;
+ALTER TABLE `foo` ADD INDEX (`id`); # auto columns must always be indexed
+ALTER TABLE `foo` DROP PRIMARY KEY; # was (`id`,`create_at`)
+ALTER TABLE `foo` ADD PRIMARY KEY (`id`);
+ALTER TABLE `foo` DROP INDEX `id`;
+},
+  ],
+
+  'remove list partition' =>
+  [
+    {},
+    $tables{qux6},
+    $tables{qux1},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE `foo` REMOVE PARTITIONING;
+ALTER TABLE `foo` ADD INDEX (`id`); # auto columns must always be indexed
+ALTER TABLE `foo` DROP PRIMARY KEY; # was (`id`,`create_at`)
+ALTER TABLE `foo` ADD PRIMARY KEY (`id`);
+ALTER TABLE `foo` DROP INDEX `id`;
+},
+  ],
+
+
+  'decrease range partitions' =>
+  [
+    {},
+    $tables{qux11},
+    $tables{qux12},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE `foo` COALESCE PARTITION 4;
+},
+  ],
+
+  'increase range partitions' =>
+  [
+    {},
+    $tables{qux12},
+    $tables{qux11},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE `foo` ADD PARTITION PARTITIONS 4;
+},
+  ],
+
+
+  'decrease linear hash partitions' =>
+  [
+    {},
+    $tables{qux13},
+    $tables{qux14},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE `foo` COALESCE PARTITION 4;
+},
+  ],
+
+  'increase linear hash partitions' =>
+  [
+    {},
+    $tables{qux14},
+    $tables{qux13},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE `foo` ADD PARTITION PARTITIONS 4;
+},
+  ],
+
+  'decrease key partitions' =>
+  [
+    {},
+    $tables{qux15},
+    $tables{qux16},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE `foo` COALESCE PARTITION 4;
+},
+  ],
+
+  'increase key partitions' =>
+  [
+    {},
+    $tables{qux16},
+    $tables{qux15},
+    qq{## mysqldiff <VERSION>
+##
+## Run on <DATE>
+##
+## --- file: tmp.db1
+## +++ file: tmp.db2
+
+ALTER TABLE `foo` ADD PARTITION PARTITIONS 4;
+},
+  ],
+
+
 );
+
+my %old_tests = %tests;
+#%tests = (
+  #'add partition' => $old_tests{'add partition by range'}
+#);
 
 my $BAIL = check_setup();
 plan skip_all => $BAIL  if($BAIL);
