@@ -235,7 +235,7 @@ sub _parse {
             next;
         }
 
-        if (/^(KEY|UNIQUE(?: KEY)?)\s+(?:(`[^`]+`|\S+))(?:\s+USING\s+(?:BTREE|HASH|RTREE))?\s*\((.*)\)$/) {
+        if (/^(KEY|UNIQUE(?: KEY)?)\s+(?:(`[^`]+`|\S+))(?:\s+USING\s+(?:BTREE|HASH|RTREE))?\s*(?:\((.*)\))(?:\s+USING\s+(?:BTREE|HASH|RTREE))?$/) {
             my ($type, $key, $val) = ($1, _unescape($2), $3);
             croak "index '$key' duplicated in table '$name'\n"
                 if $self->{indices}{$key};
