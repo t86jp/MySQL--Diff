@@ -488,18 +488,18 @@ sub _diff_partitions_list {
     }
 
 
-    my @partitions1 = $partition1 ? @{$partition1->partitions || []} : ();
-    my @partitions2 = $partition2 ? @{$partition2->partitions || []} : ();
+    my @partitions1 = $partition1 ? (map{(s!,?\s*$!!, $_)[-1]}@{$partition1->partitions || []}) : ();
+    my @partitions2 = $partition2 ? (map{(s!,?\s*$!!, $_)[-1]}@{$partition2->partitions || []}) : ();
 
     unless(@partitions1){
         return $self->_replace_partitions($table2);
     }
 
-    my %map = map{ $_ => 1 }map{(s!,?\s*$!!, $_)[-1]}@partitions1;
-    $map{$_} = $map{$_} ? 0 : 2 foreach map{(s!,?\s*$!!, $_)[-1]}@partitions2;
+    my %map = map{ $_ => 1 }@partitions1;
+    $map{$_} = $map{$_} ? 0 : 2 foreach @partitions2;
 
-    my @add = grep{$map{$_} == 2} keys %map;
-    my @drop = grep{$map{$_} == 1} keys %map;
+    my @add = grep{$map{$_} == 2} @partitions2;
+    my @drop = grep{$map{$_} == 1} @partitions1;
 
     my $name = $table1->name();
     my @changes;
