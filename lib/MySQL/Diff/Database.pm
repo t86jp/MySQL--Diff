@@ -262,7 +262,7 @@ sub _parse_defs {
     my @defs;
     foreach(@{$self->{_defs}}){
       next if /^\s*(?:(?:#|--\s+)|$)/;
-      next if m!^\s*(?:/\*\!40\d{3}+\s+SET\s+)!;
+      next if m!^\s*(?:/\*\!40\d{3}\s+SET\s+)!;
       push @defs, $_;
     }
     my $defs = join '', @defs;
